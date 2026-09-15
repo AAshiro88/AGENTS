@@ -1,43 +1,55 @@
 @echo off
-cd /d "C:\Users\shicheng.chang\.config\opencode"
-echo ============================================
-echo   Sync AGENTS.md to all branches
-echo ============================================
-echo.
+setlocal EnableExtensions
 
-:: Pull latest from remote
-echo Pulling latest from remote ...
+:: ============================================
+::  Sync AGENTS.md from the local opencode branch to:
+::    - .config/opencode  -> master branch (AGENTS.md)
+::    - .gemini/antigravity -> master branch (AGENTS.md)
+::    - .claude           -> claude branch (CLAUDE.md)
+::  Each repo returns to the branch it was on when the script started.
+::  Push each branch manually with TortoiseGit afterwards.
+:: ============================================
+
+set "OPENCODE_DIR=C:\Users\shicheng.chang\.config\opencode"
+set "GEMINI_DIR=C:\Users\shicheng.chang\.gemini\antigravity"
+set "CLAUDE_DIR=C:\Users\shicheng.chang\.claude"
+
+:: ------------------------------------------------------------
+:: [1/4] Update the opencode branch and commit AGENTS.md (source)
+:: ------------------------------------------------------------
+cd /d "%OPENCODE_DIR%"
+
+:: Remember the current branch so it can be restored later
+for /f %%i in ('git rev-parse --abbrev-ref HEAD') do set "ORIG_OPEN=%%i"
+
 git pull origin opencode
 if %errorlevel% neq 0 (
     echo [ERROR] Failed to pull opencode. Fix conflicts then re-run.
     goto :end
 )
-echo.
 
-:: Check if AGENTS.md has changes
-git diff --name-only | findstr /i "AGENTS.md" >nul
+:: Commit AGENTS.md to opencode if it changed
+git add AGENTS.md
+git diff --cached --quiet
 if %errorlevel% neq 0 (
-    git diff --cached --name-only | findstr /i "AGENTS.md" >nul
-    if %errorlevel% neq 0 (
-        echo [SKIP] No changes in AGENTS.md
-        goto :sync_master
-    )
+    git commit -m "update AGENTS.md"
+    echo [OK] AGENTS.md committed to opencode
+) else (
+    echo [SKIP] No changes in AGENTS.md on opencode
 )
 
-echo [1/4] Committing AGENTS.md to opencode ...
-git add AGENTS.md
-git commit -m "update AGENTS.md"
-echo.
-
-:sync_master
-echo [2/4] Syncing to master ...
+:: ------------------------------------------------------------
+:: [2/4] Sync AGENTS.md to the master branch of the same repo
+:: ------------------------------------------------------------
 git checkout master
+if %errorlevel% neq 0 goto :end
 git pull origin master
 if %errorlevel% neq 0 (
     echo [ERROR] Failed to pull master. Fix conflicts then re-run.
     goto :end
 )
-git show opencode:AGENTS.md > AGENTS.md
+
+copy /Y "%OPENCODE_DIR%\AGENTS.md" "AGENTS.md" >nul
 git add AGENTS.md
 git diff --cached --quiet
 if %errorlevel% neq 0 (
@@ -46,18 +58,23 @@ if %errorlevel% neq 0 (
 ) else (
     echo [SKIP] AGENTS.md already up to date on master
 )
-git checkout opencode
-echo.
+git checkout "%ORIG_OPEN%"
 
-echo [3/4] Syncing to .gemini/antigravity ...
-cd /d "C:\Users\shicheng.chang\.gemini\antigravity"
+:: ------------------------------------------------------------
+:: [3/4] Sync AGENTS.md to .gemini/antigravity
+:: ------------------------------------------------------------
+cd /d "%GEMINI_DIR%"
+for /f %%i in ('git rev-parse --abbrev-ref HEAD') do set "ORIG_GEMINI=%%i"
+
+git checkout master
+if %errorlevel% neq 0 goto :end
 git pull origin master
 if %errorlevel% neq 0 (
     echo [ERROR] Failed to pull gemini. Fix conflicts then re-run.
-    cd /d "C:\Users\shicheng.chang\.config\opencode"
     goto :end
 )
-git show opencode:AGENTS.md > AGENTS.md
+
+copy /Y "%OPENCODE_DIR%\AGENTS.md" "AGENTS.md" >nul
 git add AGENTS.md
 git diff --cached --quiet
 if %errorlevel% neq 0 (
@@ -66,18 +83,23 @@ if %errorlevel% neq 0 (
 ) else (
     echo [SKIP] AGENTS.md already up to date on gemini
 )
-cd /d "C:\Users\shicheng.chang\.config\opencode"
-echo.
+git checkout "%ORIG_GEMINI%"
 
-echo [4/4] Syncing to .claude ...
-cd /d "C:\Users\shicheng.chang\.claude"
+:: ------------------------------------------------------------
+:: [4/4] Sync AGENTS.md to .claude as CLAUDE.md
+:: ------------------------------------------------------------
+cd /d "%CLAUDE_DIR%"
+for /f %%i in ('git rev-parse --abbrev-ref HEAD') do set "ORIG_CLAUDE=%%i"
+
+git checkout claude
+if %errorlevel% neq 0 goto :end
 git pull origin claude
 if %errorlevel% neq 0 (
     echo [ERROR] Failed to pull claude. Fix conflicts then re-run.
-    cd /d "C:\Users\shicheng.chang\.config\opencode"
     goto :end
 )
-git show opencode:AGENTS.md > CLAUDE.md
+
+copy /Y "%OPENCODE_DIR%\AGENTS.md" "CLAUDE.md" >nul
 git add CLAUDE.md
 git diff --cached --quiet
 if %errorlevel% neq 0 (
@@ -86,10 +108,13 @@ if %errorlevel% neq 0 (
 ) else (
     echo [SKIP] CLAUDE.md already up to date
 )
-git checkout master
-cd /d "C:\Users\shicheng.chang\.config\opencode"
-echo.
+git checkout "%ORIG_CLAUDE%"
 
+:: ------------------------------------------------------------
+::  Done. Push each branch manually with TortoiseGit.
+:: ------------------------------------------------------------
+cd /d "%OPENCODE_DIR%"
+echo.
 echo ============================================
 echo   Done! Use TortoiseGit to push:
 echo     - master
