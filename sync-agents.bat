@@ -13,6 +13,7 @@ setlocal EnableExtensions
 set "OPENCODE_DIR=C:\Users\shicheng.chang\.config\opencode"
 set "GEMINI_DIR=C:\Users\shicheng.chang\.gemini\antigravity"
 set "CLAUDE_DIR=C:\Users\shicheng.chang\.claude"
+set "SNAP=%TEMP%\agents-sync-snapshot.md"
 
 :: ------------------------------------------------------------
 :: [1/4] Update the opencode branch and commit AGENTS.md (source)
@@ -21,6 +22,10 @@ cd /d "%OPENCODE_DIR%"
 
 :: Remember the current branch so it can be restored later
 for /f %%i in ('git rev-parse --abbrev-ref HEAD') do set "ORIG_OPEN=%%i"
+
+:: Make sure the source branch is opencode
+git checkout opencode
+if %errorlevel% neq 0 goto :end
 
 git pull origin opencode
 if %errorlevel% neq 0 (
@@ -38,6 +43,13 @@ if %errorlevel% neq 0 (
     echo [SKIP] No changes in AGENTS.md on opencode
 )
 
+:: Create a snapshot from the committed opencode AGENTS.md
+git show opencode:AGENTS.md > "%SNAP%"
+if %errorlevel% neq 0 (
+    echo [ERROR] Failed to create snapshot.
+    goto :end
+)
+
 :: ------------------------------------------------------------
 :: [2/4] Sync AGENTS.md to the master branch of the same repo
 :: ------------------------------------------------------------
@@ -49,7 +61,7 @@ if %errorlevel% neq 0 (
     goto :end
 )
 
-copy /Y "%OPENCODE_DIR%\AGENTS.md" "AGENTS.md" >nul
+copy /Y "%SNAP%" "AGENTS.md" >nul
 git add AGENTS.md
 git diff --cached --quiet
 if %errorlevel% neq 0 (
@@ -74,7 +86,7 @@ if %errorlevel% neq 0 (
     goto :end
 )
 
-copy /Y "%OPENCODE_DIR%\AGENTS.md" "AGENTS.md" >nul
+copy /Y "%SNAP%" "AGENTS.md" >nul
 git add AGENTS.md
 git diff --cached --quiet
 if %errorlevel% neq 0 (
@@ -99,7 +111,7 @@ if %errorlevel% neq 0 (
     goto :end
 )
 
-copy /Y "%OPENCODE_DIR%\AGENTS.md" "CLAUDE.md" >nul
+copy /Y "%SNAP%" "CLAUDE.md" >nul
 git add CLAUDE.md
 git diff --cached --quiet
 if %errorlevel% neq 0 (
@@ -114,6 +126,7 @@ git checkout "%ORIG_CLAUDE%"
 ::  Done. Push each branch manually with TortoiseGit.
 :: ------------------------------------------------------------
 cd /d "%OPENCODE_DIR%"
+if exist "%SNAP%" del /Q "%SNAP%"
 echo.
 echo ============================================
 echo   Done! Use TortoiseGit to push:
@@ -122,4 +135,5 @@ echo     - opencode
 echo     - claude
 echo ============================================
 :end
+if exist "%SNAP%" del /Q "%SNAP%"
 pause
