@@ -52,25 +52,30 @@ if %errorlevel% neq 0 (
 
 :: ------------------------------------------------------------
 :: [2/4] Sync AGENTS.md to the master branch of the same repo
+::       Uses a temp worktree so the current branch and working
+::       tree are never left behind.
 :: ------------------------------------------------------------
-git checkout master
+set "WT_MASTER=%TEMP%\agents-sync-wt-master"
+if exist "%WT_MASTER%" rmdir /S /Q "%WT_MASTER%"
+git worktree prune
+git worktree add "%WT_MASTER%" master
 if %errorlevel% neq 0 goto :end
-git pull origin master
+git -C "%WT_MASTER%" pull origin master
 if %errorlevel% neq 0 (
     echo [ERROR] Failed to pull master. Fix conflicts then re-run.
     goto :end
 )
 
-copy /Y "%SNAP%" "AGENTS.md" >nul
-git add AGENTS.md
-git diff --cached --quiet
+copy /Y "%SNAP%" "%WT_MASTER%\AGENTS.md" >nul
+git -C "%WT_MASTER%" add AGENTS.md
+git -C "%WT_MASTER%" diff --cached --quiet
 if %errorlevel% neq 0 (
-    git commit -m "sync AGENTS.md from opencode"
+    git -C "%WT_MASTER%" commit -m "sync AGENTS.md from opencode"
     echo [OK] AGENTS.md updated on master
 ) else (
     echo [SKIP] AGENTS.md already up to date on master
 )
-git checkout "%ORIG_OPEN%"
+git worktree remove --force "%WT_MASTER%"
 
 :: ------------------------------------------------------------
 :: [3/4] Sync AGENTS.md to .gemini/antigravity
