@@ -3,7 +3,6 @@
 
 # 不忽略的檔案
 !AGENTS.md
-!opencode.jsonc
 !opencode-rename.pyw
 !opencode-fix-titles.pyw
 !sync-agents.bat
