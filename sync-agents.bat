@@ -2,21 +2,18 @@
 setlocal EnableExtensions
 
 :: ============================================
-::  Sync AGENTS.md from the local opencode branch to:
-::    - .config/opencode  -> master branch (AGENTS.md)
-::    - .gemini/antigravity -> master branch (AGENTS.md)
-::    - .claude           -> claude branch (CLAUDE.md)
-::  Each repo returns to the branch it was on when the script started.
-::  Push each branch manually with TortoiseGit afterwards.
+::  Sync AGENTS.md from opencode branch to:
+::    - master branch (AGENTS.md)  via worktree
+::    - claude branch (CLAUDE.md)  direct checkout
+::  All in .config/opencode repo.
+::  Push manually with TortoiseGit afterwards.
 :: ============================================
 
 set "OPENCODE_DIR=%USERPROFILE%\.config\opencode"
-set "GEMINI_DIR=%USERPROFILE%\.gemini\antigravity"
-set "CLAUDE_DIR=%USERPROFILE%\.claude"
 set "SNAP=%TEMP%\agents-sync-snapshot.md"
 
 :: ------------------------------------------------------------
-:: [1/4] Update the opencode branch and commit AGENTS.md (source)
+:: [1/3] Update the opencode branch and commit AGENTS.md (source)
 :: ------------------------------------------------------------
 cd /d "%OPENCODE_DIR%"
 
@@ -51,9 +48,7 @@ if %errorlevel% neq 0 (
 )
 
 :: ------------------------------------------------------------
-:: [2/4] Sync AGENTS.md to the master branch of the same repo
-::       Uses a temp worktree so the current branch and working
-::       tree are never left behind.
+:: [2/3] Sync AGENTS.md to master branch (via worktree)
 :: ------------------------------------------------------------
 set "WT_MASTER=%TEMP%\agents-sync-wt-master"
 if exist "%WT_MASTER%" rmdir /S /Q "%WT_MASTER%"
@@ -78,34 +73,8 @@ if %errorlevel% neq 0 (
 git worktree remove --force "%WT_MASTER%"
 
 :: ------------------------------------------------------------
-:: [3/4] Sync AGENTS.md to .gemini/antigravity
+:: [3/3] Sync AGENTS.md to claude branch as CLAUDE.md
 :: ------------------------------------------------------------
-cd /d "%GEMINI_DIR%"
-for /f %%i in ('git rev-parse --abbrev-ref HEAD') do set "ORIG_GEMINI=%%i"
-
-git checkout master
-if %errorlevel% neq 0 goto :end
-git pull origin master
-if %errorlevel% neq 0 (
-    echo [ERROR] Failed to pull gemini. Fix conflicts then re-run.
-    goto :end
-)
-
-copy /Y "%SNAP%" "AGENTS.md" >nul
-git add AGENTS.md
-git diff --cached --quiet
-if %errorlevel% neq 0 (
-    git commit -m "sync AGENTS.md from opencode"
-    echo [OK] AGENTS.md updated on gemini
-) else (
-    echo [SKIP] AGENTS.md already up to date on gemini
-)
-git checkout "%ORIG_GEMINI%"
-
-:: ------------------------------------------------------------
-:: [4/4] Sync AGENTS.md to .claude as CLAUDE.md (claude branch)
-:: ------------------------------------------------------------
-cd /d "%CLAUDE_DIR%"
 for /f %%i in ('git rev-parse --abbrev-ref HEAD') do set "ORIG_CLAUDE=%%i"
 
 git checkout claude
@@ -128,31 +97,6 @@ if %errorlevel% neq 0 (
 git checkout "%ORIG_CLAUDE%"
 
 :: ------------------------------------------------------------
-:: [5/5] Sync AGENTS.md to .claude master branch as AGENTS.md
-:: ------------------------------------------------------------
-cd /d "%CLAUDE_DIR%"
-for /f %%i in ('git rev-parse --abbrev-ref HEAD') do set "ORIG_CLAUDE_MASTER=%%i"
-
-git checkout master
-if %errorlevel% neq 0 goto :end
-git pull origin master
-if %errorlevel% neq 0 (
-    echo [ERROR] Failed to pull master. Fix conflicts then re-run.
-    goto :end
-)
-
-copy /Y "%SNAP%" "AGENTS.md" >nul
-git add AGENTS.md
-git diff --cached --quiet
-if %errorlevel% neq 0 (
-    git commit -m "sync AGENTS.md from opencode"
-    echo [OK] AGENTS.md updated on master branch
-) else (
-    echo [SKIP] AGENTS.md already up to date on master branch
-)
-git checkout "%ORIG_CLAUDE_MASTER%"
-
-:: ------------------------------------------------------------
 ::  Done. Push each branch manually with TortoiseGit.
 :: ------------------------------------------------------------
 cd /d "%OPENCODE_DIR%"
@@ -164,7 +108,6 @@ echo   Done! Use TortoiseGit to push:
 echo     - master
 echo     - opencode
 echo     - claude
-echo     - claude (master branch)
 echo ============================================
 :end
 if exist "%SNAP%" del /Q "%SNAP%"
