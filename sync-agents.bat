@@ -131,6 +131,7 @@ git checkout "%ORIG_CLAUDE%"
 ::  Done. Push each branch manually with TortoiseGit.
 :: ------------------------------------------------------------
 cd /d "%OPENCODE_DIR%"
+git checkout "%ORIG_OPEN%"
 if exist "%SNAP%" del /Q "%SNAP%"
 echo.
 echo ============================================
