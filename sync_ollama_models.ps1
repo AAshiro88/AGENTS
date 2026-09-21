@@ -1,9 +1,22 @@
 ﻿$ErrorActionPreference = "Stop"
-$OLLAMA_URL = $env:OLLAMA_URL
-$CONFIG = $env:CONFIG
-$REQUIRE_TOOLS = $env:REQUIRE_TOOLS
-$MIN_CONTEXT = $env:MIN_CONTEXT
+$OLLAMA_URL = "http://localhost:11434"
+$CONFIG = Join-Path $HOME ".config\opencode\opencode.jsonc"
+$REQUIRE_TOOLS = $true
+$MIN_CONTEXT = 65536
 $q = [char]34
+
+# 前置檢查：設定檔存在
+if (-not (Test-Path -LiteralPath $CONFIG)) {
+    Write-Host "[ERROR] Config file not found: $CONFIG"
+    exit 1
+}
+
+# 前置檢查：Ollama 服務可達
+if (-not (Test-NetConnection -ComputerName localhost -Port 11434 -InformationLevel Quiet)) {
+    Write-Host "[ERROR] Ollama service is not reachable at $OLLAMA_URL"
+    Write-Host "[INFO] Please start Ollama service first: ollama serve"
+    exit 1
+}
 
 # 讀取設定檔
 $raw = [System.IO.File]::ReadAllText($CONFIG, [System.Text.Encoding]::UTF8)
@@ -53,12 +66,12 @@ try {
 $kept = @(); $dt = @(); $dc = @()
 foreach ($m in $all) {
     $okT = $true; $okC = $true
-    if ($REQUIRE_TOOLS -eq "1") {
+    if ($REQUIRE_TOOLS) {
         if (@($m.capabilities) -notcontains "tools") { $okT = $false; $dt += $m.name }
     }
     if ($MIN_CONTEXT) {
         $ctx = $m.details.context_length
-        if ($null -eq $ctx -or $ctx -lt [int]$MIN_CONTEXT) { $okC = $false; $dc += $m.name }
+        if ($null -eq $ctx -or $ctx -lt $MIN_CONTEXT) { $okC = $false; $dc += $m.name }
     }
     if ($okT -and $okC) { $kept += $m.name }
 }
@@ -111,3 +124,4 @@ if ($autoCreate) {
 
 [System.IO.File]::WriteAllText($CONFIG, $newRaw, (New-Object System.Text.UTF8Encoding($false)))
 Write-Host "[OK] Done. Config now mirrors Ollama models."
+Read-Host "Press Enter to exit"
