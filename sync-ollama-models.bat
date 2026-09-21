@@ -2,50 +2,39 @@
 setlocal EnableExtensions
 title Ollama to opencode config sync
 
-rem ============================================================
-rem  sync-ollama-models.bat
-rem  One-click sync: mirror all local Ollama models into the
-rem  provider.ollama.models section of the opencode config file.
-rem   - Models present in Ollama but missing in config  -> added
-rem   - Models deleted from Ollama but still in config  -> removed
-rem   - A timestamped backup is saved before each update
-rem  Requirements: curl, PowerShell 5+, running Ollama service.
-rem
-rem  Filtering: REQUIRE_TOOLS=1 (default) only syncs models that
-rem  support tool calling. Set REQUIRE_TOOLS=0 to sync all models.
-rem  MIN_CONTEXT: models with a smaller context window are skipped.
-rem  Models without a context_length value are also skipped.
-rem ============================================================
-
 set "OLLAMA_URL=http://localhost:11434"
 set "CONFIG=%USERPROFILE%\.config\opencode\opencode.jsonc"
 set "REQUIRE_TOOLS=1"
 set "MIN_CONTEXT=65536"
+set "SCRIPT_FILE=%USERPROFILE%\.config\opencode\sync_ollama_models.ps1"
 
-set "PS_CONF=%CONFIG%"
-set "PS_URL=%OLLAMA_URL%"
-set "PS_TOOLS=%REQUIRE_TOOLS%"
-set "PS_MIN_CTX=%MIN_CONTEXT%"
-
-rem ---- preflight -------------------------------------------------
 if not exist "%CONFIG%" (
   echo [ERROR] Config file not found: %CONFIG%
   exit /b 1
 )
 
-curl -s -o NUL --max-time 5 "%OLLAMA_URL%/" >NUL 2>&1
+if not exist "%SCRIPT_FILE%" (
+  echo [ERROR] Sync script not found: %SCRIPT_FILE%
+  exit /b 1
+)
+
+curl.exe -s -o NUL --max-time 5 "%OLLAMA_URL%/" >NUL 2>&1
 if errorlevel 1 (
   echo [ERROR] Ollama service is not reachable at %OLLAMA_URL%
+  echo [INFO] Please start Ollama service first: ollama serve
   exit /b 1
 )
 
-rem ---- run sync (single PowerShell pass, no temp files) --------
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop';$q=[char]34;$bt=[System.IO.File]::ReadAllBytes($env:PS_CONF);$bom=$false;if($bt.Length -ge 3){if(($bt[0] -eq 239)-and($bt[1] -eq 187)-and($bt[2] -eq 191)){$bom=$true}};$raw=[System.IO.File]::ReadAllText($env:PS_CONF,[System.Text.Encoding]::UTF8);$ki=$raw.IndexOf($q+'models'+$q);if($ki -lt 0){Write-Host 'models key not found; abort';exit 1};$ob=$raw.IndexOf('{',$ki);$i=$ob;$d=0;$cb=-1;$ins=$false;while($i -lt $raw.Length){$c=$raw[$i];if($c -eq $q){$ins=-not $ins}elseif(-not $ins){if($c -eq '{'){$d=$d+1}elseif($c -eq '}'){$d=$d-1;if($d -eq 0){$cb=$i;break}}};$i=$i+1};if($cb -lt 0){Write-Host 'models block is not closed; abort';exit 1};$block=$raw.Substring($ob,$cb-$ob+1);$existing=@();$re=$q+'([^'+$q+']+)'+$q+'[ \t]*:[ \t]*\{';foreach($m in [regex]::Matches($block,$re)){if($m.Groups[1].Value){$existing+=$m.Groups[1].Value}};$all=@((Invoke-RestMethod ($env:PS_URL+'/api/tags') -TimeoutSec 6).models);$kept=@();$dt=@();$dc=@();foreach($m in $all){$okT=$true;$okC=$true;if($env:PS_TOOLS -eq '1'){if(@($m.capabilities) -notcontains 'tools'){$okT=$false;$dt+=$m.name}};if($env:PS_MIN_CTX){if(($null -eq $m.details.context_length)-or($m.details.context_length -lt [int]$env:PS_MIN_CTX)){$okC=$false;$dc+=$m.name}};if($okT -and $okC){$kept+=$m.name}};$sorted=@($kept|Sort-Object -Unique);if($dt.Count -gt 0){Write-Host ('Skipped (no tools): '+($dt -join ', '))};if($dc.Count -gt 0){Write-Host ('Skipped (small context): '+($dc -join ', '))};if($sorted.Count -eq 0){Write-Host 'No model passed filters; abort';exit 1};$toAdd=@($sorted|Where-Object{$_ -notin $existing});$toRemove=@($existing|Where-Object{$_ -notin $sorted});Write-Host ('Ollama models : '+$sorted.Count);Write-Host ('Config models : '+(@($existing|Select-Object -Unique).Count));if($toRemove.Count -gt 0){Write-Host ('To remove: '+($toRemove -join ', '))};if($toAdd.Count -gt 0){Write-Host ('To add: '+($toAdd -join ', '))};if(($toAdd.Count+$toRemove.Count) -eq 0){Write-Host 'No change needed';exit 0};$stamp=Get-Date -Format 'yyyyMMdd-HHmmss';Copy-Item -LiteralPath $env:PS_CONF -Destination ($env:PS_CONF+'.'+$stamp+'.bak') -ErrorAction Stop;$nl=[string][char]13+[string][char]10;$sb=New-Object System.Text.StringBuilder;[void]$sb.Append('{'+$nl);$cnt=$sorted.Count;for($j=0;$j -lt $cnt;$j++){$n=$sorted[$j];$cm=',';if($j -eq $cnt-1){$cm=''};[void]$sb.Append('        '+$q+$n+$q+': {'+$nl);[void]$sb.Append('          '+$q+'name'+$q+': '+$q+$n+$q+$nl);[void]$sb.Append('        }'+$cm+$nl)};[void]$sb.Append('      }');$newRaw=$raw.Substring(0,$ob)+$sb.ToString()+$raw.Substring($cb+1);[System.IO.File]::WriteAllText($env:PS_CONF,$newRaw,(New-Object System.Text.UTF8Encoding($bom)));Write-Host ('Config updated to '+$cnt+' models')"
+echo [INFO] Syncing Ollama models to opencode config...
+set "OLLAMA_URL=%OLLAMA_URL%"
+set "CONFIG=%CONFIG%"
+set "REQUIRE_TOOLS=%REQUIRE_TOOLS%"
+set "MIN_CONTEXT=%MIN_CONTEXT%"
 
+powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_FILE%"
 if errorlevel 1 (
-  echo [ERROR] Sync failed with exit code %ERRORLEVEL%
+  echo [ERROR] Sync failed
   exit /b 1
 )
 
-echo [OK] Done. Config now mirrors Ollama models.
 pause
