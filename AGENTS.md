@@ -115,7 +115,7 @@
 
 | 任務涉及 | 先讀取的 Skill |
 |---|---|
-| Python 執行環境、venv / Anaconda、pip、README 版本記錄 | `python-environment` |
+| Python 執行環境、venv / Anaconda、pip、requirements.txt、Python 版本、README 版本記錄 | `python-environment` |
 | 新增、更新任何依賴或第三方套件 | `dependency-supply-chain` |
 | API / Page / Handler、登入、權限、Session、Cookie、CORS、CSRF、輸入驗證、SSRF、Webhook、Rate Limit | `web-api-security` |
 | SQL、Database、Migration、有限資源（餘額、庫存、額度） | `database-safety` |
