@@ -102,7 +102,7 @@ if ($autoCreate) {
     $end = $raw.LastIndexOf("}")
     if ($end -lt 0) { Write-Host "[ERROR] config missing closing brace"; exit 1 }
     $before = $raw.Substring(0, $end).TrimEnd()
-    $fragment = $before + "," + $nl + $nl + "  " + $q + "provider" + $q + ": {" + $nl + "    " + $q + "ollama" + $q + ": {" + $nl + "      " + $q + "models" + $q + ": " + $body + $nl + "    }" + $nl + "  }" + $nl
+    $fragment = $before + "," + $nl + $nl + "  " + $q + "provider" + $q + ": {" + $nl + "    " + $q + "ollama" + $q + ": {" + $nl + "      " + $q + "options" + $q + ": {" + $nl + "        " + $q + "baseURL" + $q + ": " + $q + $OLLAMA_URL + "/v1" + $q + $nl + "      }," + $nl + "      " + $q + "models" + $q + ": " + $body + $nl + "    }" + $nl + "  }" + $nl
     $newRaw = $fragment + $raw.Substring($end)
 } else {
     # 取代設定檔中的 models block
