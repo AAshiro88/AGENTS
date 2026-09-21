@@ -17,9 +17,6 @@ set "SNAP=%TEMP%\agents-sync-snapshot.md"
 :: ------------------------------------------------------------
 cd /d "%OPENCODE_DIR%"
 
-:: Remember the current branch so it can be restored later
-for /f %%i in ('git rev-parse --abbrev-ref HEAD') do set "ORIG_OPEN=%%i"
-
 :: Make sure the source branch is opencode
 git checkout opencode
 if %errorlevel% neq 0 goto :end
@@ -100,9 +97,6 @@ git worktree remove --force "%WT_CLAUDE%"
 :: ------------------------------------------------------------
 ::  Done. Push each branch manually with TortoiseGit.
 :: ------------------------------------------------------------
-cd /d "%OPENCODE_DIR%"
-git checkout "%ORIG_OPEN%"
-if exist "%SNAP%" del /Q "%SNAP%"
 echo.
 echo ============================================
 echo   Done! Use TortoiseGit to push:
