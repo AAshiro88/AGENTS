@@ -9,13 +9,12 @@ setlocal EnableExtensions
 ::  Push manually with TortoiseGit afterwards.
 :: ============================================
 
-set "OPENCODE_DIR=%USERPROFILE%\.config\opencode"
 set "SNAP=%TEMP%\agents-sync-snapshot.md"
 
 :: ------------------------------------------------------------
 :: [1/3] Update the opencode branch and commit AGENTS.md (source)
 :: ------------------------------------------------------------
-cd /d "%OPENCODE_DIR%"
+cd /d "%~dp0"
 
 :: Make sure the source branch is opencode
 git checkout opencode
