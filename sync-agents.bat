@@ -4,7 +4,7 @@ setlocal EnableExtensions
 :: ============================================
 ::  Sync AGENTS.md from opencode branch to:
 ::    - master branch (AGENTS.md)  via worktree
-::    - claude branch (CLAUDE.md)  direct checkout
+::    - claude branch (CLAUDE.md)  via worktree
 ::  All in .config/opencode repo.
 ::  Push manually with TortoiseGit afterwards.
 :: ============================================
@@ -73,28 +73,29 @@ if %errorlevel% neq 0 (
 git worktree remove --force "%WT_MASTER%"
 
 :: ------------------------------------------------------------
-:: [3/3] Sync AGENTS.md to claude branch as CLAUDE.md
+:: [3/3] Sync AGENTS.md to claude branch as CLAUDE.md (via worktree)
 :: ------------------------------------------------------------
-for /f %%i in ('git rev-parse --abbrev-ref HEAD') do set "ORIG_CLAUDE=%%i"
-
-git checkout claude
+set "WT_CLAUDE=%TEMP%\agents-sync-wt-claude"
+if exist "%WT_CLAUDE%" rmdir /S /Q "%WT_CLAUDE%"
+git worktree prune
+git worktree add "%WT_CLAUDE%" claude
 if %errorlevel% neq 0 goto :end
-git pull origin claude
+git -C "%WT_CLAUDE%" pull origin claude
 if %errorlevel% neq 0 (
     echo [ERROR] Failed to pull claude. Fix conflicts then re-run.
     goto :end
 )
 
-copy /Y "%SNAP%" "CLAUDE.md" >nul
-git add CLAUDE.md
-git diff --cached --quiet
+copy /Y "%SNAP%" "%WT_CLAUDE%\CLAUDE.md" >nul
+git -C "%WT_CLAUDE%" add CLAUDE.md
+git -C "%WT_CLAUDE%" diff --cached --quiet
 if %errorlevel% neq 0 (
-    git commit -m "sync CLAUDE.md from opencode"
+    git -C "%WT_CLAUDE%" commit -m "sync CLAUDE.md from opencode"
     echo [OK] CLAUDE.md updated on claude branch
 ) else (
     echo [SKIP] CLAUDE.md already up to date on claude branch
 )
-git checkout "%ORIG_CLAUDE%"
+git worktree remove --force "%WT_CLAUDE%"
 
 :: ------------------------------------------------------------
 ::  Done. Push each branch manually with TortoiseGit.
