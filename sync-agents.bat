@@ -103,7 +103,7 @@ if %errorlevel% neq 0 (
 git checkout "%ORIG_GEMINI%"
 
 :: ------------------------------------------------------------
-:: [4/4] Sync AGENTS.md to .claude as CLAUDE.md
+:: [4/4] Sync AGENTS.md to .claude as CLAUDE.md (claude branch)
 :: ------------------------------------------------------------
 cd /d "%CLAUDE_DIR%"
 for /f %%i in ('git rev-parse --abbrev-ref HEAD') do set "ORIG_CLAUDE=%%i"
@@ -121,11 +121,36 @@ git add CLAUDE.md
 git diff --cached --quiet
 if %errorlevel% neq 0 (
     git commit -m "sync CLAUDE.md from opencode"
-    echo [OK] CLAUDE.md updated
+    echo [OK] CLAUDE.md updated on claude branch
 ) else (
-    echo [SKIP] CLAUDE.md already up to date
+    echo [SKIP] CLAUDE.md already up to date on claude branch
 )
 git checkout "%ORIG_CLAUDE%"
+
+:: ------------------------------------------------------------
+:: [5/5] Sync AGENTS.md to .claude master branch as AGENTS.md
+:: ------------------------------------------------------------
+cd /d "%CLAUDE_DIR%"
+for /f %%i in ('git rev-parse --abbrev-ref HEAD') do set "ORIG_CLAUDE_MASTER=%%i"
+
+git checkout master
+if %errorlevel% neq 0 goto :end
+git pull origin master
+if %errorlevel% neq 0 (
+    echo [ERROR] Failed to pull master. Fix conflicts then re-run.
+    goto :end
+)
+
+copy /Y "%SNAP%" "AGENTS.md" >nul
+git add AGENTS.md
+git diff --cached --quiet
+if %errorlevel% neq 0 (
+    git commit -m "sync AGENTS.md from opencode"
+    echo [OK] AGENTS.md updated on master branch
+) else (
+    echo [SKIP] AGENTS.md already up to date on master branch
+)
+git checkout "%ORIG_CLAUDE_MASTER%"
 
 :: ------------------------------------------------------------
 ::  Done. Push each branch manually with TortoiseGit.
@@ -139,6 +164,7 @@ echo   Done! Use TortoiseGit to push:
 echo     - master
 echo     - opencode
 echo     - claude
+echo     - claude (master branch)
 echo ============================================
 :end
 if exist "%SNAP%" del /Q "%SNAP%"
