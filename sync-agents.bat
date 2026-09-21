@@ -10,9 +10,9 @@ setlocal EnableExtensions
 ::  Push each branch manually with TortoiseGit afterwards.
 :: ============================================
 
-set "OPENCODE_DIR=C:\Users\shicheng.chang\.config\opencode"
-set "GEMINI_DIR=C:\Users\shicheng.chang\.gemini\antigravity"
-set "CLAUDE_DIR=C:\Users\shicheng.chang\.claude"
+set "OPENCODE_DIR=%USERPROFILE%\.config\opencode"
+set "GEMINI_DIR=%USERPROFILE%\.gemini\antigravity"
+set "CLAUDE_DIR=%USERPROFILE%\.claude"
 set "SNAP=%TEMP%\agents-sync-snapshot.md"
 
 :: ------------------------------------------------------------
